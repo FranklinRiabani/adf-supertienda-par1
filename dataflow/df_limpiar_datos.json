@@ -1,0 +1,94 @@
+{
+	"name": "df_limpiar_datos",
+	"properties": {
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "datas_sucios_csv",
+						"type": "DatasetReference"
+					},
+					"name": "source1"
+				}
+			],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "ds_datos_sucios",
+						"type": "DatasetReference"
+					},
+					"name": "sink1"
+				}
+			],
+			"transformations": [
+				{
+					"name": "eliminarEspacios"
+				},
+				{
+					"name": "eliminarNulos"
+				},
+				{
+					"name": "caracteresEspeciales"
+				},
+				{
+					"name": "CaracteresNoImprimibles"
+				},
+				{
+					"name": "eliminarDuplicados"
+				},
+				{
+					"name": "cast1"
+				}
+			],
+			"scriptLines": [
+				"source(output(",
+				"          ID as string,",
+				"          Nombre as string,",
+				"          Edad as string,",
+				"          Email as string,",
+				"          ciudad as string",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     ignoreNoFilesFound: false) ~> source1",
+				"source1 derive(Nombre = trim(Nombre)) ~> eliminarEspacios",
+				"eliminarEspacios derive(Edad = iifNull(Edad, \"0\", Edad),",
+				"          ciudad = iifNull(ciudad, \"n/a\", ciudad)) ~> eliminarNulos",
+				"eliminarNulos derive(Email = replace(Email, \"#\", \"@\")) ~> caracteresEspeciales",
+				"caracteresEspeciales derive(Nombre = replace(replace(replace(Nombre,\"\\\\t\",\"\"),\"\\\\r\",\"\"),\"\\\\n\",\"\")) ~> CaracteresNoImprimibles",
+				"CaracteresNoImprimibles aggregate(groupBy(ID),",
+				"     each(match(name !=\"ID\"), $$ = first($$))) ~> eliminarDuplicados",
+				"eliminarDuplicados cast(output(",
+				"          ID as integer,",
+				"          Edad as integer",
+				"     ),",
+				"     errors: true) ~> cast1",
+				"cast1 sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     input(",
+				"          ID as integer,",
+				"          Nombre as string,",
+				"          Edad as integer,",
+				"          Email as string,",
+				"          Ciudad as string",
+				"     ),",
+				"     deletable:false,",
+				"     insertable:true,",
+				"     updateable:false,",
+				"     upsertable:false,",
+				"     format: 'table',",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     errorHandlingOption: 'stopOnFirstError',",
+				"     mapColumn(",
+				"          ID,",
+				"          Nombre,",
+				"          Edad,",
+				"          Email,",
+				"          Ciudad = ciudad",
+				"     )) ~> sink1"
+			]
+		}
+	}
+}
